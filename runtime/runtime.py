@@ -13,6 +13,7 @@ import runtime_utilities
 IMAGE_CLASSIFICATION = "image_classification"
 TRANSLATION = "translation"
 SPEECH_TO_TEXT = "speech_to_text"
+BERT = "bert"
 
 
 class ModulesWithDependencies:
@@ -392,6 +393,16 @@ class StageRuntime:
                 self.tensors[-1]["target_length"] = \
                     torch.tensor([int(sum(torch.LongTensor(tgt_length) - 1))],
                                  dtype=torch.int).cuda()
+            elif self.model_type == BERT:
+                input0, input1, input2, target, target_label = input
+                input2 = input2.unsqueeze(1).unsqueeze(2)
+                input2 = input2.to(dtype=torch.float32) # fp16 compatibility
+                input2 = (1.0 - input2) * -10000.0
+                self.tensors[-1]["input0"] = input0.cuda(non_blocking=True)
+                self.tensors[-1]["input1"] = input1.cuda(non_blocking=True)
+                self.tensors[-1]["input2"] = input2.cuda(non_blocking=True)
+                self.tensors[-1]["target"] = target.cuda(non_blocking=True)
+                self.tensors[-1]["target_label"] = target_label.cuda(non_blocking=True)
             elif self.model_type == IMAGE_CLASSIFICATION:
                 (input, target) = input
                 if self.fp16:
@@ -519,6 +530,11 @@ class StageRuntime:
                     target_sizes = tensors["target_length"].cpu()
                     input0_size = tensors["input0_size"].cpu()
                     module_outputs = [module(output, target, output_sizes, target_sizes) / input0_size[0]]
+                elif self.model_type == BERT:
+                    output = [tensors[input_name] for input_name in input_names]
+                    output.append(tensors["target"])
+                    output.append(tensors["target_label"])
+                    module_outputs = [module(*output)]
                 else:
                     module_outputs = [module(tensors[input_name],
                                              tensors["target"])
