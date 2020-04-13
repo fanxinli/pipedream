@@ -335,7 +335,6 @@ def main():
         if args.forward_only:
             validate(val_loader, r, epoch)
         else:
-            print("Start training...")
             train(train_loader, r, optimizer, epoch)
 
             # evaluate on validation set
@@ -393,8 +392,8 @@ def train(train_loader, r, optimizer, epoch):
 
         if is_last_stage():
             # measure accuracy and record loss
-            output, target, loss, num_tokens = r.output, r.target, r.loss.item(), r.num_tokens()
-            losses.update(loss, num_tokens)
+            output, target, loss = r.output, r.target, r.loss.item()
+            losses.update(loss)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -487,7 +486,7 @@ def validate(val_loader, r, epoch):
 
                 # measure accuracy and record loss
                 # prec1, prec5 = accuracy(output, target, topk=(1, 5))
-                losses.update(loss, output.size(0))
+                losses.update(loss)
                 # top1.update(prec1[0], output.size(0))
                 # top5.update(prec5[0], output.size(0))
 

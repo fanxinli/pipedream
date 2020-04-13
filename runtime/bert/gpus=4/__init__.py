@@ -10,8 +10,8 @@ def arch():
 def model(criterion):
     return [
         (Stage0(), ["input0", "input1", "input2"], ["out18", "out0"]),
-        (Stage1(), ["out18", "out0"], ["out19"]),
-        (Stage2(), ["out19", "out18"], ["out20", "out21"]),
+        (Stage1(), ["out18", "out0"], ["out19", "out18"]),
+        (Stage2(), ["out19", "out18"], ["out20", "out21", "out18"]),
         (Stage3(), ["out20", "out21", "out18"], ["out23", "out22"]),
         (criterion, ["out23", "out22"], ["loss"])
     ]

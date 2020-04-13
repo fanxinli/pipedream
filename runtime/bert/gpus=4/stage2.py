@@ -135,4 +135,4 @@ class Stage2(torch.nn.Module):
         out67 = self.layer67(out65)
         out68 = self.layer68(out67)
         out69 = self.layer69(out68)
-        return (out67, out69)
+        return (out67, out69, out1)

@@ -104,4 +104,4 @@ class Stage3(torch.nn.Module):
         out49 = self.layer49(out48)
         out50 = self.layer50(out45)
         out51 = self.layer51(out50)
-        return (out49, out51)
+        return (out49, out51, out2)

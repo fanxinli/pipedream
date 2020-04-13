@@ -190,21 +190,20 @@ class StageRuntime:
                 fp16=self.fp16,
                 backend=self.distributed_backend)
 
-            for i in range(len(model)):
-                for j in range(i+1, len(model)):
-                    for tensor_name in model[i][2]:
-                        if tensor_name in model[j][1]:
-                            if module_to_stage_map[i] == \
-                                module_to_stage_map[j]:
-                                continue
-                            # For now, assume that each stage is served by only
-                            # a single machine.
-                            if module_to_stage_map[j] == self.stage:
-                                self.receive_ranks[tensor_name] = \
-                                    stage_to_rank_map[module_to_stage_map[i]]
-                            if module_to_stage_map[i] == self.stage:
-                                self.send_ranks[tensor_name] = \
-                                    stage_to_rank_map[module_to_stage_map[j]]
+            for i in range(len(model)-1):
+                for tensor_name in model[i][2]:
+                    if tensor_name in model[i+1][1]:
+                        if module_to_stage_map[i] == \
+                            module_to_stage_map[i+1]:
+                            continue
+                        # For now, assume that each stage is served by only
+                        # a single machine.
+                        if module_to_stage_map[i+1] == self.stage:
+                            self.receive_ranks[tensor_name] = \
+                                stage_to_rank_map[module_to_stage_map[i]]
+                        if module_to_stage_map[i] == self.stage:
+                            self.send_ranks[tensor_name] = \
+                                stage_to_rank_map[module_to_stage_map[i+1]]
 
             for model_inputs in inputs_module_destinations.keys():
                 destination_stage = module_to_stage_map[
