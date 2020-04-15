@@ -32,7 +32,11 @@ declaration_specialcase = [
     "ResizeInput",
     "InferenceBatchSoftmax",
     "BatchRNN",
-    "SequenceWise"
+    "SequenceWise",
+    "BertSelfAttention",
+    "BertPooler",
+    "BertLayerNorm",
+    "BertEmbeddings"
 ]
 
 def get_output_tuple_str(outputs):
@@ -149,6 +153,14 @@ def convert_subgraph_to_module(graph, full_graph, num_subgraphs, module_name, in
                     out_features = int(m.group(2))
                     layer_declaration = "Classifier(%d, %d)" % (in_features, out_features)
                     import_statements.append("from seq2seq.models.decoder import Classifier")
+                elif declaration == "BertSelfAttention":
+                    import_statements.append("from modeling import BertSelfAttention")
+                elif declaration == "BertPooler":
+                    import_statements.append("from modeling import BertPooler")
+                elif declaration == "BertLayerNorm":
+                    import_statements.append("from modeling import BertLayerNorm")
+                elif declaration == "BertEmbeddings":
+                    import_statements.append("from modeling import BertEmbeddings")
                 elif declaration == "MaskConv":
                     node_desc = node.node_desc
                     modules = node_desc.split("    ")[1:-1]
@@ -353,7 +365,7 @@ def convert_subgraph_to_module(graph, full_graph, num_subgraphs, module_name, in
                               "module_methods": "\n\n".join(module_methods)}
     with open(output_filename, 'w') as f:
         f.write(model)
-    return num_inputs, num_outputs
+    return num_inputs, 0
 
 def fuse_subgraphs_to_module(graph, subgraphs, model_name, initialize_weights,
                              model_template_filename, output_filename):

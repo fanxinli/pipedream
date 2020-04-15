@@ -147,11 +147,23 @@ class TensorWrapper(object):
         self.graph_creator.graph.add_edge(self._node, wrapped_result.node())
         return wrapped_result
 
+    def permute(self, *args):
+        result_tensor = self.tensor.permute(*args)
+        args_str = ", ".join([str(arg) for arg in args])
+        wrapped_result = TensorWrapper(result_tensor, "Permute(%s)" % args_str,
+                                       self.graph_creator,
+                                       activation_size=self.node().activation_size)
+        self.graph_creator.graph.add_edge(self._node, wrapped_result.node())
+        return wrapped_result
+
     def unsqueeze(self, *args):
         return self.tensor.unsqueeze(*args)
 
     def node(self):
         return self._node
+
+    def log_softmax(self, *args):
+        return self.tensor.log_softmax(*args)
 
 
 def cat(wrapped_tensors, dim):

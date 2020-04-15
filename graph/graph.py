@@ -95,7 +95,7 @@ class Graph(object):
             for out_node in self.edges[node.node_id]:
                 if out_node.depth is None or out_node.depth < (node.depth + 1):
                     out_node.depth = node.depth + 1
-                queue.append(out_node)
+                    queue.append(out_node)
 
     def populate_heights(self):
         # Helper method that annotates each node in the graph with its height from the further

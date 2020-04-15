@@ -56,8 +56,6 @@ def summary(model, module_whitelist, model_input, verbose, device="cuda"):
                 elif 'bias' in name:
                     params += torch.prod(torch.LongTensor(list(param.size())))
             summary[-1]['nb_params'] = params
-            summary[-1]['forward_time'] = 0.0
-            summary[-1]['backward_time'] = 0.0
 
         hooks.append(module.register_forward_hook(hook))
                 
