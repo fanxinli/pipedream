@@ -16,6 +16,11 @@ SPEECH_TO_TEXT = "speech_to_text"
 BERT = "bert"
 
 
+STATUS_IDLE = "status_idle"
+STATUS_FORWARD = "status_forward"
+STATUS_BACKWARD = "status_backward"
+STATUS_OPTIMIZE = "status_optimize"
+
 class ModulesWithDependencies:
     def __init__(self, modules_with_dependencies):
         self._modules = []
@@ -63,7 +68,7 @@ def get_to_device(name, mapping):
 
 
 
-def swap_hook_wrapper(name, mapping, argument):
+def swap_hook_wrapper(name, mapping, status, argument):
     def swap_in_fwd_hook(module, input_):
         ## module.register_forward_pre_hook()
         if need_swap_in(name, mapping):
@@ -72,15 +77,19 @@ def swap_hook_wrapper(name, mapping, argument):
             d = get_to_device(name, mapping)
             module.to(d)
             mapping[name][2]=d
+            status[0] = STATUS_FORWARD
+            status[1] = name
         return input_
 
     def swap_out_fwd_hook(module, input_, output):
         ## module.register_forward_hook()
         if need_swap_out(name, mapping):
-            #print("[SWAP] FWD swap out")
+            print("[SWAP] FWD swap out")
             #print(list[module.parameters()][0].device)
             module.to('cpu',non_blocking=True)
             mapping[name][2]=-1
+            status[0] = STATUS_FORWARD
+            status[1] = name
         return None
 
     def swap_in_bwd_hook(module, grad_input):
@@ -91,6 +100,8 @@ def swap_hook_wrapper(name, mapping, argument):
             d = get_to_device(name, mapping)
             module.to(d)
             mapping[name][2]=d
+            status[0] = STATUS_BACKWARD
+            status[1] = name
         return grad_input
 
     def swap_out_bwd_hook(module, grad_input, grad_output):
@@ -100,6 +111,8 @@ def swap_hook_wrapper(name, mapping, argument):
             #print(list[module.parameters()][0].device)
             module.to('cpu',non_blocking=True)
             mapping[name][2]=-1
+            status[0] = STATUS_BACKWARD
+            status[1] = name
         return None
 
     switcher = {
@@ -131,6 +144,7 @@ class StageRuntime:
         self.target_tensor_names = target_tensor_names
 
         self.mapping = collections.OrderedDict()
+        self.status = ["IDLE","","",""] # Status, use first field, latter field for backup
 
 
         self.initialize(model, inputs_module_destinations, configuration_maps,
@@ -239,12 +253,16 @@ class StageRuntime:
                 [model[module] for module in modules])
             print(self.modules_with_dependencies.modules())
 
+
+            ### shixiong Generate Mapping
+
             for name,module in self.modules_with_dependencies.modules()[0].named_children():
                 # [module, original_device, current_device, need_swap_out_eagerly ]
 
                 self.mapping[name] = [module, torch.cuda.current_device(), torch.cuda.current_device(), 1]
 
             print("[Mapping]")
+
             print(self.mapping)
             self.is_criterion = self.stage == (self.num_stages - 1)
             if stage_to_depth_map is not None:
@@ -372,6 +390,16 @@ class StageRuntime:
                 self.num_ranks_in_stage,
                 self.ranks_in_previous_stage,
                 self.ranks_in_next_stage)
+
+
+        ## shixiong register hooks
+        print(self.modules_with_dependencies.modules()[0])
+        for name, m in self.modules_with_dependencies.modules()[0].named_children():
+            m.register_forward_hook(swap_hook_wrapper(name, self.mapping, self.status,"swap_out_fwd_hook"))
+            ## Backward do not eagerly swap out, because optimizer needs it
+            #m.register_backward_hook(swap_hook_wrapper(name, self.mapping, "swap_out_bwd_hook"))
+            m.register_forward_pre_hook(swap_hook_wrapper(name,self.mapping, self.status,"swap_in_fwd_hook"))
+            m.register_backward_pre_hook(swap_hook_wrapper(name, self.mapping, self.status, "swap_in_bwd_hook"))
 
     @property
     def target(self):
@@ -626,17 +654,8 @@ class StageRuntime:
                     module_outputs = [sum(module_outputs)]
             else:
                 # If layer is non-criterion.
-
-
                 #print("register forward prehook")
                 #print(module)
-
-
-                for name, m in module.named_children():
-                    m.register_forward_hook(swap_hook_wrapper(name, self.mapping, "swap_out_fwd_hook"))
-                    #m.register_backward_hook(swap_hook_wrapper(name, self.mapping, "swap_out_bwd_hook"))
-                    m.register_forward_pre_hook(swap_hook_wrapper(name,self.mapping,"swap_in_fwd_hook"))
-                    m.register_backward_pre_hook(swap_hook_wrapper(name, self.mapping,"swap_in_bwd_hook"))
                 #module.register_forward_pre_hook(swap_hook_wrapper())
                 module_outputs = module(*[tensors[input_name]
                                           for input_name in input_names])

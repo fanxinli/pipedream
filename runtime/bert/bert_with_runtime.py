@@ -384,8 +384,8 @@ def train(train_loader, r, optimizer, epoch):
         print("Running training for %d minibatches" % n)
 
     # start num_warmup_minibatches forward passes
-    for i in range(num_warmup_minibatches):
-        r.run_forward()
+    # for i in range(num_warmup_minibatches):
+    #     r.run_forward()
 
     for i in range(n - num_warmup_minibatches):
         # perform forward pass
