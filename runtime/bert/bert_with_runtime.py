@@ -378,6 +378,7 @@ def train(train_loader, r, optimizer, epoch):
     else:
         num_warmup_minibatches = r.num_warmup_minibatches
 
+    print("here")
     if args.verbose_frequency > 0:
         print("Letting in %d warm-up minibatches" % num_warmup_minibatches)
         print("Running training for %d minibatches" % n)
@@ -415,8 +416,8 @@ def train(train_loader, r, optimizer, epoch):
                 import sys; sys.stdout.flush()
         else:
             if i % args.print_freq == 0:
-                print('Epoch: [{0}][{1}/{2}]\tMemory: {memory:.3f} ({cached_memory:.3f})'.format(
-                       epoch, i, n, memory=(float(torch.cuda.memory_allocated()) / 10**9),
+                print('Stage: [{0}]\tEpoch: [{1}][{2}/{3}]\tMemory: {memory:.3f} ({cached_memory:.3f})'.format( 
+                       args.stage, epoch, i, n, memory=(float(torch.cuda.memory_allocated()) / 10**9),
                        cached_memory=(float(torch.cuda.memory_cached()) / 10**9)))
                 import sys; sys.stdout.flush()
 

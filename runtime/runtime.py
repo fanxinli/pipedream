@@ -42,6 +42,42 @@ class ModulesWithDependencies:
         return False
 
 
+def swap_hook_wrapper(name, type):
+    def swap_in_fwd_hook(module, input):
+        ## module.register_forward_pre_hook()
+        if need_swap_in(name, mapping):
+            print("[SWAP] Need swap in")
+            module.to(get_device(name, mapping))
+        return input
+
+    def swap_out_fwd_hook(module, input, output):
+        ## module.register_forward_hook()
+        if need_swap_out(name, mapping):
+            print("[SWAP] Going to swap out")
+            module.to('cpu',non_blocking=True)
+        return output
+
+    def swap_in_bwd_hook(module, grad_input):
+        ## module.register_backward_pre_hook()
+        if need_swap_in(name, mapping):
+            module.to(get_device(name, mapping))
+        return grad_input
+
+    def swap_out_bwd_hook(module, grad_input, grad_output):
+        ## module.register_backward_hook()
+        if need_swap_out(name, mapping):
+            moudle.to('cpu', non_blocking=True)
+        return grad_output
+
+    switcher = {
+        "swap_in_fwd_hook":swap_in_fwd_hook,
+        "swap_out_fwd_hook":swap_out_fwd_hook,
+        "swap_in_bwd_hook":swap_in_bwd_hook,
+        "swap_out_bwd_hook":swap_out_bwd_hook
+    }
+    return switcher.get(type, lambda: None)
+
+
 class StageRuntime:
     def __init__(self, model, distributed_backend, fp16, loss_scale,
                  training_tensor_shapes, eval_tensor_shapes,
@@ -161,8 +197,10 @@ class StageRuntime:
                     stage_to_rank_map[self.stage + 1])
                 self.ranks_in_next_stage = stage_to_rank_map[self.stage + 1]
             modules = stage_to_module_map[self.stage]
+            print(stage_to_module_map)
             self.modules_with_dependencies = ModulesWithDependencies(
                 [model[module] for module in modules])
+            print(self.modules_with_dependencies.modules())
             self.is_criterion = self.stage == (self.num_stages - 1)
             if stage_to_depth_map is not None:
                 self.num_warmup_minibatches = stage_to_depth_map[
@@ -322,7 +360,9 @@ class StageRuntime:
 
     def cuda(self):
         modules = self.modules_with_dependencies.modules()
+        print("Move modules to cuda")
         for i in range(len(modules)):
+            print("Module%s"%moudle[i])
             modules[i] = modules[i].cuda()
 
     def zero_grad(self):
@@ -541,6 +581,12 @@ class StageRuntime:
                     module_outputs = [sum(module_outputs)]
             else:
                 # If layer is non-criterion.
+                print("register forward prehook")
+                #print(module)
+
+
+
+                module.register_forward_pre_hook(swap_hook_wrapper())
                 module_outputs = module(*[tensors[input_name]
                                           for input_name in input_names])
                 if not isinstance(module_outputs, tuple):
