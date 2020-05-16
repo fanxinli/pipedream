@@ -202,6 +202,10 @@ def main():
             int(k): v for (k, v) in configuration_maps['stage_to_rank_map'].items()}
         configuration_maps['stage_to_depth_map'] = json_config_file.get("stage_to_depth_map", None)
 
+    ## Generate moudle state mapping
+
+    m = OrderedDict()
+    
     r = runtime.StageRuntime(
         model=model, distributed_backend=args.distributed_backend,
         fp16=args.fp16, loss_scale=args.loss_scale,
@@ -215,9 +219,10 @@ def main():
         rank=args.rank, local_rank=args.local_rank,
         num_ranks_in_server=args.num_ranks_in_server,
         verbose_freq=args.verbose_frequency,
-        model_type=runtime.TRANSLATION,
+        model_type=runtime.TRANSLATION, mapping=mapping
         enable_recompute=args.recompute)
 
+    
     # stage needed to determine if current stage is the first stage
     # num_stages needed to determine if current stage is the last stage
     # num_ranks needed to determine number of warmup_minibatches in case of pipelining

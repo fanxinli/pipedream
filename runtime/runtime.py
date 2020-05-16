@@ -42,32 +42,65 @@ class ModulesWithDependencies:
         return False
 
 
-def swap_hook_wrapper(name, type):
-    def swap_in_fwd_hook(module, input):
+
+def need_swap_in(name, mapping):
+    if mapping[name][1] != mapping[name][2]:
+        return True
+    else:
+        return False
+
+def need_swap_out(name, mapping):
+    if mapping[name][3] == 1:
+        return True
+    else:
+        return False
+
+def get_current_device(name, mapping):
+    return mapping[name][2]
+
+def get_to_device(name, mapping):
+    return 'cuda:'+str(mapping[name][1]) 
+
+
+
+def swap_hook_wrapper(name, mapping, argument):
+    def swap_in_fwd_hook(module, input_):
         ## module.register_forward_pre_hook()
         if need_swap_in(name, mapping):
-            print("[SWAP] Need swap in")
-            module.to(get_device(name, mapping))
-        return input
+            #print("[SWAP] FWD swap in")
+            #print(list[module.parameters()][0].device)
+            d = get_to_device(name, mapping)
+            module.to(d)
+            mapping[name][2]=d
+        return input_
 
-    def swap_out_fwd_hook(module, input, output):
+    def swap_out_fwd_hook(module, input_, output):
         ## module.register_forward_hook()
         if need_swap_out(name, mapping):
-            print("[SWAP] Going to swap out")
+            #print("[SWAP] FWD swap out")
+            #print(list[module.parameters()][0].device)
             module.to('cpu',non_blocking=True)
-        return output
+            mapping[name][2]=-1
+        return None
 
     def swap_in_bwd_hook(module, grad_input):
         ## module.register_backward_pre_hook()
         if need_swap_in(name, mapping):
-            module.to(get_device(name, mapping))
+            #print("[SWAP] BWD swap in")
+            #print(list[module.parameters()][0].device)
+            d = get_to_device(name, mapping)
+            module.to(d)
+            mapping[name][2]=d
         return grad_input
 
     def swap_out_bwd_hook(module, grad_input, grad_output):
         ## module.register_backward_hook()
         if need_swap_out(name, mapping):
-            moudle.to('cpu', non_blocking=True)
-        return grad_output
+            #print("[SWAP] BWD swap out")
+            #print(list[module.parameters()][0].device)
+            module.to('cpu',non_blocking=True)
+            mapping[name][2]=-1
+        return None
 
     switcher = {
         "swap_in_fwd_hook":swap_in_fwd_hook,
@@ -75,7 +108,7 @@ def swap_hook_wrapper(name, type):
         "swap_in_bwd_hook":swap_in_bwd_hook,
         "swap_out_bwd_hook":swap_out_bwd_hook
     }
-    return switcher.get(type, lambda: None)
+    return switcher.get(argument, lambda: None)
 
 
 class StageRuntime:
@@ -84,7 +117,7 @@ class StageRuntime:
                  training_tensor_dtypes, inputs_module_destinations,
                  target_tensor_names, configuration_maps, master_addr,
                  rank, local_rank, num_ranks_in_server, verbose_freq,
-                 model_type, enable_recompute=False):
+                 model_type, mapping=None, enable_recompute=False):
         # Metadata needed for forward and backward pass within this stage.
         self.tensors = []
         self.gradients = {}
@@ -96,6 +129,9 @@ class StageRuntime:
         self.training_tensor_dtypes = training_tensor_dtypes
         self.model_type = model_type
         self.target_tensor_names = target_tensor_names
+
+        self.mapping = collections.OrderedDict()
+
 
         self.initialize(model, inputs_module_destinations, configuration_maps,
                         master_addr, rank, local_rank, num_ranks_in_server)
@@ -109,6 +145,7 @@ class StageRuntime:
         # Enable recomputation to prevent the need to save activations
         # computed from the forward pass for the backward pass.
         self.enable_recompute = enable_recompute
+
 
         # Disable recomputation for the last stage.
         if rank == num_ranks_in_server - 1:
@@ -201,6 +238,14 @@ class StageRuntime:
             self.modules_with_dependencies = ModulesWithDependencies(
                 [model[module] for module in modules])
             print(self.modules_with_dependencies.modules())
+
+            for name,module in self.modules_with_dependencies.modules()[0].named_children():
+                # [module, original_device, current_device, need_swap_out_eagerly ]
+
+                self.mapping[name] = [module, torch.cuda.current_device(), torch.cuda.current_device(), 1]
+
+            print("[Mapping]")
+            print(self.mapping)
             self.is_criterion = self.stage == (self.num_stages - 1)
             if stage_to_depth_map is not None:
                 self.num_warmup_minibatches = stage_to_depth_map[
@@ -581,12 +626,18 @@ class StageRuntime:
                     module_outputs = [sum(module_outputs)]
             else:
                 # If layer is non-criterion.
-                print("register forward prehook")
+
+
+                #print("register forward prehook")
                 #print(module)
 
 
-
-                module.register_forward_pre_hook(swap_hook_wrapper())
+                for name, m in module.named_children():
+                    m.register_forward_hook(swap_hook_wrapper(name, self.mapping, "swap_out_fwd_hook"))
+                    #m.register_backward_hook(swap_hook_wrapper(name, self.mapping, "swap_out_bwd_hook"))
+                    m.register_forward_pre_hook(swap_hook_wrapper(name,self.mapping,"swap_in_fwd_hook"))
+                    m.register_backward_pre_hook(swap_hook_wrapper(name, self.mapping,"swap_in_bwd_hook"))
+                #module.register_forward_pre_hook(swap_hook_wrapper())
                 module_outputs = module(*[tensors[input_name]
                                           for input_name in input_names])
                 if not isinstance(module_outputs, tuple):
