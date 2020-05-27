@@ -2,10 +2,10 @@
 'module': 'gpus=4'
 'data_dir': 'data/hdf5_lower_case_1_seq_len_128_max_pred_20_masked_lm_prob_0.15_random_seed_12345_dupe_factor_5/bookscorpus/'
 'config_file': 'gpus=4/mp_conf.json'
-'container': 'bert'
+'container': 'bert:v2'
 'machines': ['localhost:0', 'localhost:1', 'localhost:2', 'localhost:3']
 'batch_size': 16
-'learning_rate': 0.005
+'learning_rate': 0.0005
 'weight_decay': 0.000
 'epochs': 100
 'print_frequency': 100

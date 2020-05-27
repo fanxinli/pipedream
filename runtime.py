@@ -533,6 +533,8 @@ class StageRuntime:
                     module_outputs = [module(output, target, output_sizes, target_sizes) / input0_size[0]]
                 elif self.model_type == BERT:
                     output = [tensors[input_name] for input_name in input_names]
+                    if self.forward_minibatch_id % 1024 == 0:
+                        print(output)
                     output.append(tensors["target"])
                     module_outputs = [module(*output)]
                 else:

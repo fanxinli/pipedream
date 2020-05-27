@@ -297,19 +297,19 @@ def main():
         assert args.start_epoch > 0
         validate(val_loader, r, args.start_epoch-1)
 
+    train_files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
+                   os.path.isfile(os.path.join(args.data_dir, f)) and 'training' in f]
+    val_files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
+                 os.path.isfile(os.path.join(args.data_dir, f)) and 'test' in f]
     for epoch in range(args.start_epoch, args.epochs):
-        files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
-                     os.path.isfile(os.path.join(args.data_dir, f)) and 'training' in f]
-        data_file = files[0]
+        data_file = train_files[epoch%8]
         train_data = pretraining_dataset(data_file, args.max_predictions_per_seq)
         train_sampler = RandomSampler(train_data)
         train_loader = DataLoader(train_data, sampler=train_sampler,
                                   batch_size=args.batch_size, num_workers=4,
                                   pin_memory=True)
 
-        files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
-                     os.path.isfile(os.path.join(args.data_dir, f)) and 'test' in f]
-        data_file = files[0]
+        data_file = val_files[0]
         val_data = pretraining_dataset(data_file, args.max_predictions_per_seq)
         val_sampler = RandomSampler(val_data)
         val_loader = DataLoader(val_data, sampler=val_sampler,
@@ -374,6 +374,7 @@ def train(train_loader, r, optimizer, epoch):
 
     r.set_loss_scale(1 / accumulation)
     for t in range(n // accumulation):
+        losses.reset()
         print("Stage: [%d] Batch: [%d] Start pipeline injection(%f)" % (args.stage, t, time.time()))
         # start num_warmup_minibatches forward passes
         for i in range(num_warmup_minibatches):
