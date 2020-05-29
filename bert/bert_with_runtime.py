@@ -277,9 +277,6 @@ def main():
         num_versions=num_versions, lr=args.lr, betas=(0.9,0.999),
         weight_decay=args.weight_decay, verbose_freq=args.verbose_frequency,
         macrobatch=args.macrobatch)
-    lr_scheduler = PolyWarmUpScheduler(optimizer,
-                                       warmup=0.01,
-                                       total_steps=1000)
 
     if args.resume:
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -299,26 +296,16 @@ def main():
 
     train_files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
                    os.path.isfile(os.path.join(args.data_dir, f)) and 'training' in f]
-    val_files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
-                 os.path.isfile(os.path.join(args.data_dir, f)) and 'test' in f]
     for epoch in range(args.start_epoch, args.epochs):
-        data_file = train_files[epoch%8]
+        data_file = train_files[0]
         train_data = pretraining_dataset(data_file, args.max_predictions_per_seq)
         train_sampler = RandomSampler(train_data)
         train_loader = DataLoader(train_data, sampler=train_sampler,
                                   batch_size=args.batch_size, num_workers=4,
                                   pin_memory=True)
 
-        data_file = val_files[0]
-        val_data = pretraining_dataset(data_file, args.max_predictions_per_seq)
-        val_sampler = RandomSampler(val_data)
-        val_loader = DataLoader(val_data, sampler=val_sampler,
-                                batch_size=args.eval_batch_size, num_workers=4,
-                                pin_memory=True)
-
         if distributed_sampler:
             train_loader.sampler.set_epoch(epoch)
-        lr_scheduler.step()
 
         # train or run forward pass only for one epoch
         if args.forward_only:
@@ -327,7 +314,8 @@ def main():
             train(train_loader, r, optimizer, epoch)
 
             # evaluate on validation set
-            prec1 = validate(val_loader, r, epoch)
+            # prec1 = validate(val_loader, r, epoch)
+            prec1 = 0
             if r.stage != r.num_stages: prec1 = 0
 
             # remember best prec@1 and save checkpoint

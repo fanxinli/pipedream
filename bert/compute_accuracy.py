@@ -10,6 +10,7 @@ import os
 import sys
 
 import torch
+torch.manual_seed(0)
 from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.parallel
@@ -231,14 +232,13 @@ def main():
 
         files = [os.path.join(args.data_dir, f) for f in os.listdir(args.data_dir) if
                  os.path.isfile(os.path.join(args.data_dir, f)) and 'training' in f]
-        data_file = files[0]
-        val_data = pretraining_dataset(data_file, args.max_predictions_per_seq)
-        val_loader = DataLoader(val_data,
-                                batch_size=args.batch_size, num_workers=4,
-                                pin_memory=True)
+        data = pretraining_dataset(files[0], args.max_predictions_per_seq)
+        sampler = RandomSampler(data)
+        loader = DataLoader(data, sampler=sampler,
+                            batch_size=args.batch_size, num_workers=4,
+                            pin_memory=True)
 
-        loader_size=len(val_loader)
-        val_iter = tqdm(val_loader, desc="Iteration")
+        val_iter = tqdm(loader, desc="Iteration")
 
         num = 0
         acc = 0
