@@ -376,6 +376,7 @@ def train(train_loader, r, optimizer, epoch):
             end = time.time()
             # perform forward pass
             r.run_forward()
+            print("Stage: {}  Forward time: {}".format(args.stage, time.time()-end))
 
             if is_last_stage():
                 # measure accuracy and record loss
@@ -383,7 +384,10 @@ def train(train_loader, r, optimizer, epoch):
                 losses.update(loss)
 
             # perform backward pass
+
+            ttime = time.time()
             r.run_backward()
+            print("Stage: {}  Backward time: {}".format(args.stage, time.time()-ttime))
 
             if is_last_stage():
                 # measure elapsed time
@@ -426,6 +430,12 @@ def train(train_loader, r, optimizer, epoch):
     # wait for all helper threads to complete
     r.wait()
 
+
+    # event_queue
+    #    for all recpartition
+    #   for all repartition...
+    
+     
     print("Epoch %d: %.3f seconds" % (epoch, time.time() - epoch_start_time))
     print("Epoch start time: %.3f, epoch end time: %.3f" % (epoch_start_time, time.time()))
 

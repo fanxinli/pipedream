@@ -495,6 +495,20 @@ out250 = self.layer250(out249)
         self.in_cuda = False
 
 
+    # def layer_change():
+    #     start 
+    #     end 
+    #     # added layer
+
+    #     '''self.layerxxx = Bert'''
+    #     exec()
+
+    #     # deleted layer
+    #     '''self.layer = 
+        
+    # def recompute_change():
+    #     '''
+
 
     def stage_to_cuda(self):
         if (not self.in_cuda):
