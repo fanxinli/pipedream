@@ -1,8 +1,8 @@
 import torch
-from .stage0 import Stage0
-from .stage1 import Stage1
-from .stage2 import Stage2
-from .stage3 import Stage3
+from .stage0_d import Stage0
+from .stage1_d import Stage1
+from .stage2_d import Stage2
+from .stage3_d import Stage3
 
 class BertPartitioned(torch.nn.Module):
     def __init__(self):

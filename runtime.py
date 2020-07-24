@@ -612,6 +612,7 @@ class StageRuntime:
                 input_gradients[input_name] = input_gradient
             return hook
 
+
         for input_name in inputs:
             if input_name != "input0" and input_name != "input1" and input_name != "input2" \
                     and inputs[input_name].requires_grad:

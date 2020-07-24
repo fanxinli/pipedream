@@ -65,8 +65,8 @@ class Stage3(torch.nn.Module):
 
 
     def forward(self, input1, input0,input5):
+        return self.forward_(input1, input0,input5)
         return cp.checkpoint(self.forward_, input1, input0, input5)
-
 
     def forward_(self, input1, input0, input5):
         out0 = input0.clone()

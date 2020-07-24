@@ -192,7 +192,11 @@ def main():
             input_tensor = torch.ones(tuple(training_tensor_shapes[module_input]),
                                       dtype=dtypes[module_input]).cuda()
             input_tensors.append(input_tensor)
-        stage.cuda()
+
+        if (hasattr(stage,"stage_to_cuda")):
+            stage.stage_to_cuda()
+        else:
+            stage.cuda()
         # PyTorch should not maintain metadata for a backward pass on
         # synthetic inputs. Without the following line, the runtime is
         # as much as 1.5x slower in a full DP configuration.
